@@ -11,7 +11,9 @@ import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.UntrustworthyData
 import net.corda.core.utilities.unwrap
+import java.security.PublicKey
 import java.util.*
+import javax.swing.plaf.nimbus.State
 
 @Suppress("UNCHECKED_CAST")
 @InitiatingFlow
@@ -43,7 +45,6 @@ class WalletTransferFromFlow(
     override fun call() {
         progressTracker.currentStep = START
         val notary = serviceHub.networkMapCache.notaryIdentities[0]
-
         progressTracker.currentStep = PARSED_INPUTS
         val parsedAmountGiven = Amount.parseCurrency(amountGiven)
         val currencyCode = parsedAmountGiven.token.currencyCode
@@ -68,25 +69,31 @@ class WalletTransferFromFlow(
         )
 
         progressTracker.currentStep = CREATING_TX
-        val command = Command(
-                WalletContract.WalletCommands.Transfer(),
+        val txBuilder = buildVerifyTransaction(
+                notary,
+                listOf(inputState, counterPartyInput),
+                listOf(outputState, counterPartyOutput),
                 listOf(ourIdentity.owningKey, counterPartyInput.state.data.owner.owningKey)
         )
-        val txBuilder = TransactionBuilder(notary)
-                .addInputState(inputState)
-                .addInputState(counterPartyInput)
-                .addOutputState(outputState, WalletContract.ID)
-                .addOutputState(counterPartyOutput, WalletContract.ID, notary)
-                .addCommand(command)
-        txBuilder.verify(serviceHub)
-
         val signedTx = serviceHub.signInitialTransaction(txBuilder)
 
         progressTracker.currentStep = SIGNATURES_WAIT
         val fullySignedTx = subFlow(CollectSignaturesFlow(signedTx, listOf(counterPartySession), CollectSignaturesFlow.tracker()))
-
         progressTracker.currentStep = FINALIZING
         subFlow(FinalityFlow(fullySignedTx, counterPartySession))
+    }
+
+    private fun buildVerifyTransaction(notary: Party, inputs: List<StateAndRef<WalletState>>, outputs: List<WalletState>, signingKeys: List<PublicKey>): TransactionBuilder {
+        val command = Command(
+                WalletContract.WalletCommands.Transfer(),
+                signingKeys
+        )
+        val txBuilder = TransactionBuilder(notary)
+                .withItems(inputs.toTypedArray())
+                .withItems(outputs.map { StateAndContract(it, WalletContract.ID) }.toTypedArray())
+                .addCommand(command)
+        txBuilder.verify(serviceHub)
+        return txBuilder
     }
 
     @Suspendable
