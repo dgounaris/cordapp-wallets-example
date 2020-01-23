@@ -1,3 +1,5 @@
+import java.util.stream.Collectors
+
 buildscript {
     Properties constants = new Properties()
     file("$projectDir/./constants.properties").withInputStream { constants.load(it) }
@@ -33,13 +35,15 @@ buildscript {
         classpath "net.corda.plugins:cordformation:$corda_gradle_plugins_version"
         classpath "net.corda.plugins:quasar-utils:$corda_gradle_plugins_version"
         classpath "org.springframework.boot:spring-boot-gradle-plugin:$spring_boot_gradle_plugin_version"
-
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.8"
     }
 }
 
 allprojects {
     apply from: "${rootProject.projectDir}/repositories.gradle"
     apply plugin: 'kotlin'
+    apply plugin: 'jacoco'
+    apply plugin: 'org.sonarqube'
 
     repositories {
         mavenLocal()
@@ -47,6 +51,23 @@ allprojects {
         mavenCentral()
         maven { url 'https://software.r3.com/artifactory/corda' }
         maven { url 'https://jitpack.io' }
+    }
+
+    jacoco {
+        toolVersion = '0.8.5'
+    }
+
+    sonarqube {
+        properties {
+            property "sonar.projectName", "Wallet cordapp"
+            property "sonar.projectKey", "cordapp-wallet"
+            property 'sonar.sources', 'src'
+            property 'sonar.tests', 'src'
+            property 'sonar.inclusions', 'src/main/**'
+            property 'sonar.test.inclusions', 'src/test/**'
+            property 'sonar.login', '4429f6e688dbfa33437659569602c9f27ed12515'
+            property 'sonar.coverage.jacoco.xmlReportPaths', '../build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml'
+        }
     }
 
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
@@ -62,6 +83,42 @@ allprojects {
         // This makes the JAR's SHA-256 hash repeatable.
         preserveFileTimestamps = false
         reproducibleFileOrder = true
+    }
+}
+
+subprojects {
+    jacocoTestReport {
+        additionalSourceDirs.setFrom(files(sourceSets.main.allSource.srcDirs))
+        sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+        classDirectories.setFrom(files(sourceSets.main.output))
+        reports {
+            html.enabled = true
+            xml.enabled = true
+            xml.destination(file('build/reports/jacoco/jacocoReport.xml'))
+            csv.enabled = false
+        }
+    }
+}
+
+task jacocoRootReport(type: JacocoReport) {
+    subprojects.forEach { it.jacocoTestReport.mustRunAfter(it.test) }
+    dependsOn = [subprojects.test, subprojects.jacocoTestReport]
+    additionalSourceDirs.setFrom(files(subprojects.sourceSets.main.allSource.srcDirs))
+    sourceDirectories.setFrom(files(subprojects.sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(files(subprojects.sourceSets.main.output))
+    executionData.setFrom(files(subprojects.jacocoTestReport.executionData))
+    reports {
+        html.enabled = true
+        xml.enabled = true
+        csv.enabled = false
+    }
+    onlyIf = {
+        true
+    }
+    doFirst {
+        executionData.setFrom(files(executionData.findAll {
+            it.exists()
+        }))
     }
 }
 
