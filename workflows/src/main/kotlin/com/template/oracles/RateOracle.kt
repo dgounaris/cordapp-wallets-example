@@ -76,7 +76,7 @@ class RateOracle(private val services: AppServiceHub) : SingletonSerializeAsToke
     }
 }
 
-@InitiatedBy(WalletTransferFromFlow::class)
+@InitiatedBy(RateFlow.RateSignFlow::class)
 class RateSignHandler(private val otherPartySession: FlowSession): FlowLogic<Unit>() {
     @Suspendable
     override fun call() {
@@ -86,7 +86,7 @@ class RateSignHandler(private val otherPartySession: FlowSession): FlowLogic<Uni
     }
 }
 
-@InitiatedBy(WalletTransferFromFlow::class)
+@InitiatedBy(RateFlow.RateQueryFlow::class)
 class RateQueryHandler(private val otherPartySession: FlowSession): FlowLogic<Unit>() {
     @Suspendable
     override fun call() {

@@ -2,9 +2,12 @@ package com.template.flows
 
 import co.paralleluniverse.fibers.Suspendable
 import com.template.contracts.WalletContract
+import com.template.oracles.RateOf
+import com.template.oracles.RateOracle
 import com.template.states.WalletState
 import net.corda.core.contracts.*
 import net.corda.core.flows.*
+import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.TransactionBuilder
@@ -68,6 +71,12 @@ class WalletTransferFromFlow(
                 )
         )
 
+        // fixme as a PoC for now we just get the rate between eur and usd
+        val rate = subFlow(RateFlow.RateQueryFlow(
+                RateOf("EUR", "USD"),
+                serviceHub.identityService.wellKnownPartyFromX500Name(CordaX500Name.parse("O=RateOracle,L=New York,C=US"))!!
+        ))
+
         progressTracker.currentStep = CREATING_TX
         val txBuilder = buildVerifyTransaction(
                 notary,
@@ -89,8 +98,8 @@ class WalletTransferFromFlow(
                 signingKeys
         )
         val txBuilder = TransactionBuilder(notary)
-                .withItems(inputs.toTypedArray())
-                .withItems(outputs.map { StateAndContract(it, WalletContract.ID) }.toTypedArray())
+                .withItems(*(inputs.toTypedArray()))
+                .withItems(*(outputs.map { StateAndContract(it, WalletContract.ID) }.toTypedArray()))
                 .addCommand(command)
         txBuilder.verify(serviceHub)
         return txBuilder
