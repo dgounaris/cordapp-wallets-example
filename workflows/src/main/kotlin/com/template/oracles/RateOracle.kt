@@ -87,6 +87,7 @@ class RateSignHandler(private val otherPartySession: FlowSession): FlowLogic<Uni
 }
 
 @InitiatedBy(RateFlow.RateQueryFlow::class)
+
 class RateQueryHandler(private val otherPartySession: FlowSession): FlowLogic<Unit>() {
     @Suspendable
     override fun call() {
