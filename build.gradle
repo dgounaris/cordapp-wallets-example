@@ -65,7 +65,6 @@ allprojects {
             property 'sonar.tests', 'src'
             property 'sonar.inclusions', 'src/main/**'
             property 'sonar.test.inclusions', 'src/test/**'
-            property 'sonar.login', '4429f6e688dbfa33437659569602c9f27ed12515'
             property 'sonar.coverage.jacoco.xmlReportPaths', '../build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml'
         }
     }
