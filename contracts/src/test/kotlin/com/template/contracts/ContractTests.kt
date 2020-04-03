@@ -8,6 +8,6 @@ class ContractTests {
 
     @Test
     fun `dummy test`() {
-
+        assert(false)
     }
 }
